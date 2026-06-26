@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="时间去哪了">
+<meta name="theme-color" content="#f5f2ec">
+<title>時間帳 · 时间去哪了</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* 和纸色系 */
+  --bg:      #f5f2ec;   /* 和纸米白 */
+  --bg2:     #edeae2;   /* 旧纸 */
+  --bg3:     #e4e0d6;   /* 浅灰褐 */
+  --border:  #d8d3c8;   /* 纸纹线 */
+  --border2: #c4bfb2;   /* 深一档 */
+
+  /* 文字 */
+  --text:    #2c2823;   /* 墨色 */
+  --text2:   #7a736a;   /* 淡墨 */
+  --text3:   #b0a89e;   /* 淡灰 */
+
+  /* 点睛：青瓷绿 */
+  --accent:  #5b8f7c;
+  --accent-light: #e8f2ee;
+  --accent2: #3d6b5a;
+
+  /* 计时运行：樱花粉 */
+  --sakura:  #c97b8a;
+
+  /* 危险色 */
+  --danger:  #b85c5c;
+
+  --radius: 10px;
+  --radius-sm: 7px;
+  --font-serif: 'Noto Serif SC', 'Hiragino Mincho ProN', serif;
+  --font-sans:  'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  min-height: 100vh;
+  padding-bottom: 80px;
+  /* 细腻纸纹背景 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23f5f2ec'/%3E%3Crect x='0' y='0' width='1' height='1' fill='%23ece9e1' opacity='.3'/%3E%3C/svg%3E");
+}
+
+/* ── 顶栏 ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+.topbar h1 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: .08em;
+  color: var(--text);
+}
+.topbar .date { font-size: 11px; color: var(--text2); letter-spacing: .04em; margin-top: 2px; }
+
+/* ── 底部导航 ── */
+.nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  z-index: 100;
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 0 14px;
+  font-size: 10px;
+  color: var(--text3);
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: color .15s;
+}
+.nav-btn.active { color: var(--accent); }.nav-btn svg { width: 22px; height: 22px; }
+
+/* ── 页面 ── */
+.page { display: none; padding: 0 16px; }
+.page.active { display: block; }
+
+/* ── 计时器主页 ── */
+.timer-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0 22px;
+  gap: 8px;
+}
+.timer-display {
+  font-family: var(--font-serif);
+  font-size: 62px;
+  font-weight: 200;
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+  min-width: 240px;
+  text-align: center;
+  transition: color .4s;
+}
+.timer-display.running { color: var(--sakura); }
+.timer-cat-badge {
+  font-size: 12px;
+  color: var(--text2);
+  height: 18px;
+  letter-spacing: .04em;
+}
+
+/* 选类别 */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.cat-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  transition: all .15s;
+  position: relative;
+  overflow: hidden;
+}
+.cat-chip.selected {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-light);
+}
+.cat-chip .cdot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cat-chip-name { font-size: 12px; line-height: 1.2; }
+
+/* 子类别 */
+.sub-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  min-height: 30px;
+}
+.sub-chip {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .15s;
+}
+.sub-chip.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* 备注 */
+.note-input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  resize: none;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s;
+}
+.note-input:focus { border-color: var(--border2); }
+.note-input::placeholder { color: var(--text3); }
+
+/* 开始/结束按钮 */
+.timer-btn-row { display: flex; gap: 10px; margin-bottom: 24px; }
+.btn-start {
+  flex: 1;
+  height: 52px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 400;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .1em;
+}
+.btn-start:active { transform: scale(.97); opacity: .9; }
+.btn-start.running {
+  background: transparent;
+  border: 1px solid var(--sakura);
+  color: var(--sakura);
+}
+.btn-pause {
+  width: 52px; height: 52px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 18px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.btn-pause.show { display: flex; }
+.btn-pause.paused {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.btn-discard {
+  width: 52px; height: 52px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text3);
+  font-size: 20px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.btn-discard.show { display: flex; }
+.btn-discard:hover { border-color: var(--danger); color: var(--danger); }
+
+/* 暂停时计时器变暗 */
+.timer-display.paused { color: var(--text3); }
+.paused-hint {
+  font-size: 12px;
+  color: var(--sakura);
+  letter-spacing: .04em;
+  min-height: 18px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.paused-hint.visible {
+  opacity: 1;
+}
+
+/* 今日记录 */
+.section-label {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+.today-total {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+.entry-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.entry-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+.entry-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.entry-info { flex: 1; min-width: 0; }
+.entry-name { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-meta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.entry-dur { font-size: 13px; color: var(--text2); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.entry-del {
+  background: none; border: none; color: var(--text3);
+  font-size: 16px; cursor: pointer; padding: 2px 4px;
+  border-radius: 4px; flex-shrink: 0;
+}
+.entry-del:hover { color: var(--danger); }
+.empty-hint {
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  padding: 24px 0;
+}
+
+/* ── 统计页 ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.stat-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.stat-val { font-size: 26px; font-weight: 300; color: var(--text); }
+.stat-unit { font-size: 12px; color: var(--text2); margin-left: 2px; }
+
+/* 热力图 */
+.heatmap-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+}
+.hm-wrap { display: flex; gap: 2px; }
+.hm-col { display: flex; flex-direction: column; gap: 2px; }
+.hm-ml { font-size: 9px; color: var(--text3); height: 10px; line-height: 10px; }
+.hm-cell { width: 10px; height: 10px; border-radius: 2px; }
+.hm-day-labels { display: flex; flex-direction: column; gap: 2px; margin-right: 4px; margin-top: 10px; }
+.hm-day-labels span { font-size: 9px; color: var(--text3); height: 10px; line-height: 10px; width: 12px; }
+
+/* 图表区 */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.legend { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+.legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+.legend-sq { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.legend-h { margin-left: auto; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* 过滤器 */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.filter-chip {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .15s;
+}
+.filter-chip.active { border-color: var(--accent); color: var(--accent); }
+.filter-chip .cdot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── 历史页 ── */
+.history-date-header {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+  padding: 14px 0 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+/* ── 设置页 ── */
+.settings-section { margin-bottom: 24px; }
+.settings-title { font-size: 13px; color: var(--text2); margin: 16px 0 8px; padding-left: 2px; }
+.setting-row {
+  display: flex;
+  align-items: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  gap: 10px;
+}
+.setting-row .cdot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.setting-row-name { flex: 1; font-size: 14px; }
+.setting-row-subs { font-size: 11px; color: var(--text3); }
+.btn-small {
+  font-size: 12px; padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+}
+.btn-small:hover { color: var(--text); }
+.btn-small.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* 新增类别表单 */
+.add-cat-form {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  display: none;
+}
+.add-cat-form.open { display: block; }
+.form-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.form-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-family: inherit;
+  outline: none;
+}
+.form-input:focus { border-color: var(--border2); }
+.form-row-btns { display: flex; gap: 8px; }
+.btn-confirm {
+  flex: 1; height: 36px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.btn-cancel {
+  height: 36px; padding: 0 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-add-cat {
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border2);
+  background: transparent;
+  color: var(--text3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-add-cat:hover { color: var(--text2); border-color: var(--border2); }
+
+/* PWA install hint */
+.install-hint {
+  background: var(--accent-light);
+  border: 1px solid #b8d4c8;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--accent2);
+  margin: 12px 0;
+  display: none;
+  line-height: 1.6;
+}
+.install-hint.show { display: block; }
+
+/* 滚动美化 */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* 响应式 */
+@media (min-width: 600px) {
+  body { max-width: 480px; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <div>
+    <h1>時間帳</h1>
+    <div class="date" id="topbar-date"></div>
+  </div>
+  <div style="font-size:13px;color:var(--text2)" id="topbar-total"></div>
+</div>
+
+<!-- 页面：计时器 -->
+<div class="page active" id="page-timer">
+  <div class="timer-hero">
+    <div class="timer-display" id="timer-display">00:00:00</div>
+    <div class="timer-cat-badge" id="timer-cat-badge">选择一个类别开始记录</div>
+    <div class="paused-hint" id="paused-hint"></div>
+  </div>
+
+  <div class="cat-grid" id="cat-grid"></div>
+  <div class="sub-row" id="sub-row"></div>
+
+  <textarea class="note-input" id="note-input" rows="1" placeholder="备注（可选）…"></textarea>
+
+  <div class="timer-btn-row">
+    <button class="btn-start" id="btn-start" onclick="toggleTimer()">开始</button>
+    <button class="btn-pause" id="btn-pause" onclick="togglePause()" title="暂停">⏸</button>
+    <button class="btn-discard" id="btn-discard" onclick="discardTimer()" title="丢弃">✕</button>
+  </div>
+
+  <div class="section-label">今天</div>
+  <div class="today-total" id="today-total"></div>
+  <div class="entry-list" id="today-list"></div>
+</div>
+
+<!-- 页面：统计 -->
+<div class="page" id="page-stats">
+  <div class="stats-grid" id="stats-grid"></div>
+
+  <div class="filter-row" id="stats-filter"></div>
+
+  <div class="section-label" style="margin-top:4px">过去12周</div>
+  <div class="heatmap-card">
+    <div style="display:flex">
+      <div class="hm-day-labels">
+        <span></span><span>一</span><span> </span><span>三</span><span> </span><span>五</span><span> </span><span>日</span>
+      </div>
+      <div class="hm-wrap" id="heatmap"></div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <div class="section-label">类别占比</div>
+      <div style="position:relative;height:120px"><canvas id="pie-chart"></canvas></div>
+      <div class="legend" id="pie-legend"></div>
+    </div>
+    <div class="chart-card">
+      <div class="section-label">近7天</div>
+      <div style="position:relative;height:120px"><canvas id="bar-chart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- 页面：历史 -->
+<div class="page" id="page-history">
+  <div class="filter-row" id="history-filter"></div>
+  <div id="history-list"></div>
+</div>
+
+<!-- 页面：设置 -->
+<div class="page" id="page-settings">
+  <div class="install-hint" id="install-hint">
+    📱 在 Safari 中打开此页 → 点击分享 → "添加到主屏幕"，即可像 App 一样使用
+  </div>
+  <div class="settings-title">我的类别</div>
+  <div id="cat-settings-list"></div>
+  <div class="add-cat-form" id="add-cat-form">
+    <div class="form-label">类别名称</div>
+    <input class="form-input" id="new-cat-name" placeholder="例：冥想" />
+    <div class="form-label">子活动（用逗号分隔，可不填）</div>
+    <input class="form-input" id="new-cat-subs" placeholder="例：正念，呼吸练习" />
+    <div class="form-row-btns">
+      <button class="btn-confirm" onclick="confirmAddCat()">添加</button>
+      <button class="btn-cancel" onclick="closeAddCat()">取消</button>
+    </div>
+  </div>
+  <button class="btn-add-cat" onclick="openAddCat()">＋ 新增类别</button>
+
+  <div class="settings-title" style="margin-top:24px">数据</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn-small" onclick="exportData()">导出 JSON</button>
+    <button class="btn-small" onclick="importData()">导入备份</button>
+    <button class="btn-small danger" onclick="clearAllData()">清除全部数据</button>
+  </div>
+  <div style="margin-top:16px;font-size:12px;color:var(--text3);line-height:1.7">
+    数据保存在本地浏览器中。<br>
+    换设备或清除浏览器缓存前请先导出备份。
+  </div>
+</div>
+
+<!-- 底部导航 -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-timer" onclick="switchPage('timer')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+    计时
+  </button>
+  <button class="nav-btn" id="nav-stats" onclick="switchPage('stats')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="13" width="4" height="8"/><rect x="10" y="9" width="4" height="12"/><rect x="17" y="5" width="4" height="16"/></svg>
+    统计
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="switchPage('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+    历史
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="switchPage('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    设置
+  </button>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* ════════════════════════════════════════
+   数据
+════════════════════════════════════════ */
+const DEFAULT_CATS = [
+  {id:'c1', name:'学雅思',   color:'#378ADD', subs:['朗读','抄写','背诵']},
+  {id:'c2', name:'练吉他',   color:'#D4537E', subs:['solo','和弦']},
+  {id:'c3', name:'运动',     color:'#1D9E75', subs:['八段锦','慢跑','散步']},
+  {id:'c4', name:'家务',     color:'#EF9F27', subs:['做饭','打扫','购物']},
+  {id:'c5', name:'阅读',     color:'#7F77DD', subs:['中文原版','英文原版','日文原版']},
+  {id:'c6', name:'网站设计', color:'#185FA5', subs:[]},
+  {id:'c7', name:'杂学',     color:'#888780', subs:['玄学','访谈','听音乐']},
+  {id:'c8', name:'学韩语',   color:'#D85A30', subs:[]},
+  {id:'c9', name:'工作',     color:'#A0A0A0', subs:['无聊的','有意义的']},
+  {id:'c10',name:'睡眠',     color:'#5DCAA5', subs:[]},
+  {id:'c11',name:'身体清洁', color:'#85B7EB', subs:[]},
+  {id:'c12',name:'家人沟通', color:'#F0997B', subs:[]},
+  {id:'c13',name:'朋友玩耍', color:'#AFA9EC', subs:[]},
+];
+
+function loadCats(){ return JSON.parse(localStorage.getItem('wts_cats')||'null') || DEFAULT_CATS; }
+function saveCats(c){ localStorage.setItem('wts_cats', JSON.stringify(c)); }
+function loadEntries(){ return JSON.parse(localStorage.getItem('wts_entries')||'[]'); }
+function saveEntries(e){ localStorage.setItem('wts_entries', JSON.stringify(e)); }
+
+let cats = loadCats();
+let entries = loadEntries();
+
+function catById(id){ return cats.find(c=>c.id===id); }
+function catByName(n){ return cats.find(c=>c.name===n); }
+function catColor(name){ return (catByName(name)||{color:'#888'}).color; }
+
+/* ════════════════════════════════════════
+   计时器状态
+════════════════════════════════════════ */
+let timerState = JSON.parse(sessionStorage.getItem('wts_timer')||'null') || {
+  running: false,
+  paused: false,
+  startTs: null,
+  pausedAt: null,   // 暂停时刻的时间戳
+  elapsed: 0,       // 已累计秒数（暂停前）
+  catId: null,
+  subName: null,
+};
+
+let timerInterval = null;
+let filterCatStats = null;
+let filterCatHistory = null;
+
+/* ════════════════════════════════════════
+   工具
+════════════════════════════════════════ */
+function toDateStr(d){ return d.toISOString().split('T')[0]; }
+function todayStr(){ return toDateStr(new Date()); }
+function fmtSeconds(s){
+  s = Math.floor(s);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function fmtHours(s){ return (s/3600).toFixed(2)*1 + 'h'; }
+function uid(){ return 'e'+ Date.now() + Math.random().toString(36).slice(2,6); }
+function saveTimerState(){ sessionStorage.setItem('wts_timer', JSON.stringify(timerState)); }
+
+/* ════════════════════════════════════════
+   顶栏
+════════════════════════════════════════ */
+function updateTopbar(){
+  const d = new Date();
+  document.getElementById('topbar-date').textContent =
+    d.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'short'});
+  const todayH = entries.filter(e=>e.date===todayStr()).reduce((s,e)=>s+e.duration,0);
+  document.getElementById('topbar-total').textContent = todayH>0 ? '今日 '+fmtHours(todayH) : '';
+}
+
+/* ════════════════════════════════════════
+   页面切换
+════════════════════════════════════════ */
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='stats') renderStats();
+  if(name==='history') renderHistory();
+  if(name==='settings') renderSettings();
+}
+window.switchPage = switchPage;
+
+/* ════════════════════════════════════════
+   计时器页
+════════════════════════════════════════ */
+function renderCatGrid(){
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = cats.map(c=>`
+    <div class="cat-chip ${timerState.catId===c.id?'selected':''}"
+         onclick="selectCat('${c.id}')">
+      <div class="cdot" style="background:${c.color}"></div>
+      <div class="cat-chip-name">${c.name}</div>
+    </div>`).join('');
+}
+
+function renderSubRow(){
+  const el = document.getElementById('sub-row');
+  const cat = catById(timerState.catId);
+  if(!cat || !cat.subs.length){ el.innerHTML=''; return; }
+  el.innerHTML = cat.subs.map(s=>`
+    <div class="sub-chip ${timerState.subName===s?'selected':''}"
+         onclick="selectSub('${s.replace(/'/g,"\\'")}')">
+      ${s}
+    </div>`).join('');
+}
+
+function selectCat(id){
+  if(timerState.running) return; // 运行中不能换类别
+  timerState.catId = id;
+  timerState.subName = null;
+  saveTimerState();
+  renderCatGrid();
+  renderSubRow();
+  updateTimerBadge();
+}
+window.selectCat = selectCat;
+
+function selectSub(s){
+  timerState.subName = timerState.subName===s ? null : s;
+  saveTimerState();
+  renderSubRow();
+}
+window.selectSub = selectSub;
+
+function updateTimerBadge(){
+  const cat = catById(timerState.catId);
+  const badge = document.getElementById('timer-cat-badge');
+  if(!cat){ badge.textContent = '选择一个类别开始记录'; return; }
+  badge.textContent = cat.name + (timerState.subName ? ' · '+timerState.subName : '');
+  badge.style.color = cat.color;
+}
+
+function toggleTimer(){
+  if(!timerState.running && !timerState.paused){
+    // ── 全新开始 ──
+    if(!timerState.catId){ alert('请先选择一个类别'); return; }
+    timerState.startTs = Date.now();
+    timerState.elapsed = 0;
+    timerState.running = true;
+    timerState.paused  = false;
+    saveTimerState();
+    startInterval();
+    document.getElementById('btn-start').textContent = '结束';
+    document.getElementById('btn-start').classList.add('running');
+    document.getElementById('btn-pause').classList.add('show');
+    document.getElementById('btn-discard').classList.add('show');
+    document.getElementById('timer-display').classList.add('running');
+    const sHint = document.getElementById('paused-hint');
+    sHint.classList.remove('visible');
+    sHint.textContent = '';
+    document.querySelectorAll('.cat-chip').forEach(c=>c.style.pointerEvents='none');
+
+  } else {
+    // ── 结束并保存（无论是运行中还是暂停中）──
+    stopInterval();
+    const totalSec = timerState.paused
+      ? timerState.elapsed
+      : timerState.elapsed + Math.floor((Date.now() - timerState.startTs)/1000);
+    if(totalSec < 10){ alert('时间太短（不足10秒），已丢弃'); resetTimer(); return; }
+    const cat = catById(timerState.catId);
+    const note = document.getElementById('note-input').value.trim();
+    const name = timerState.subName || note || cat.name;
+    const endTs = Date.now();
+    entries.push({
+      id: uid(),
+      catId: timerState.catId,
+      catName: cat.name,
+      name: name,
+      note: note,
+      startTs: endTs - totalSec*1000,
+      endTs: endTs,
+      duration: totalSec,
+      date: todayStr(),
+    });
+    saveEntries();
+    resetTimer();
+    renderTimerPage();
+    updateTopbar();
+  }
+}
+window.toggleTimer = toggleTimer;
+
+function togglePause(){
+  if(!timerState.running && !timerState.paused) return;
+
+  if(timerState.running){
+    // ── 暂停 ──
+    stopInterval();
+    timerState.elapsed += Math.floor((Date.now() - timerState.startTs)/1000);
+    timerState.running = false;
+    timerState.paused  = true;
+    timerState.startTs = null;
+    saveTimerState();
+
+    document.getElementById('btn-pause').textContent = '▶';
+    document.getElementById('btn-pause').classList.add('paused');
+    document.getElementById('btn-start').classList.remove('running');
+    document.getElementById('btn-start').textContent = '结束';
+    document.getElementById('timer-display').classList.remove('running');
+    document.getElementById('timer-display').classList.add('paused');
+    const hint = document.getElementById('paused-hint');
+    hint.textContent = '已暂停 · 去忙另一件事吧';
+    requestAnimationFrame(()=>hint.classList.add('visible'));
+
+  } else {
+    // ── 继续 ──
+    timerState.startTs = Date.now();
+    timerState.running = true;
+    timerState.paused  = false;
+    saveTimerState();
+    startInterval();
+
+    document.getElementById('btn-pause').textContent = '⏸';
+    document.getElementById('btn-pause').classList.remove('paused');
+    document.getElementById('btn-start').classList.add('running');
+    document.getElementById('timer-display').classList.remove('paused');
+    document.getElementById('timer-display').classList.add('running');
+    const hint2 = document.getElementById('paused-hint');
+    hint2.classList.remove('visible');
+    setTimeout(()=>{ hint2.textContent=''; }, 300);
+  }
+}
+window.togglePause = togglePause;
+
+function discardTimer(){
+  if(!confirm('丢弃这条计时？')) return;
+  stopInterval();
+  resetTimer();
+  renderTimerPage();
+}
+window.discardTimer = discardTimer;
+
+function resetTimer(){
+  timerState.running = false;
+  timerState.paused  = false;
+  timerState.startTs = null;
+  timerState.elapsed = 0;
+  saveTimerState();
+  document.getElementById('timer-display').textContent = '00:00:00';
+  document.getElementById('timer-display').classList.remove('running','paused');
+  document.getElementById('btn-start').textContent = '开始';
+  document.getElementById('btn-start').classList.remove('running');
+  document.getElementById('btn-pause').classList.remove('show','paused');
+  document.getElementById('btn-pause').textContent = '⏸';
+  document.getElementById('btn-discard').classList.remove('show');
+  const rHint = document.getElementById('paused-hint');
+  rHint.classList.remove('visible');
+  rHint.textContent = '';
+  document.getElementById('note-input').value = '';
+  document.querySelectorAll('.cat-chip').forEach(c=>c.style.pointerEvents='');
+}
+
+function startInterval(){
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(()=>{
+    const liveSec = timerState.elapsed + Math.floor((Date.now()-timerState.startTs)/1000);
+    document.getElementById('timer-display').textContent = fmtSeconds(liveSec);
+    document.title = fmtSeconds(liveSec) + ' – 時間帳';
+  }, 500);
+}
+function stopInterval(){
+  clearInterval(timerInterval);
+  timerInterval = null;
+  document.title = '时间去哪了';
+}
+
+function renderTimerPage(){
+  renderCatGrid();
+  renderSubRow();
+  updateTimerBadge();
+  renderTodayList();
+}
+
+function renderTodayList(){
+  const today = todayStr();
+  const todayEntries = entries.filter(e=>e.date===today).sort((a,b)=>b.startTs-a.startTs);
+  const el = document.getElementById('today-list');
+  const totalSec = todayEntries.reduce((s,e)=>s+e.duration,0);
+  document.getElementById('today-total').textContent =
+    todayEntries.length ? `共 ${todayEntries.length} 条 · ${fmtHours(totalSec)}` : '';
+
+  if(!todayEntries.length){
+    el.innerHTML = '<div class="empty-hint">今天还没有记录<br>选好类别按"开始"吧</div>';
+    return;
+  }
+  el.innerHTML = todayEntries.map(e=>{
+    const t = new Date(e.startTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    const t2 = new Date(e.endTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="entry-card">
+      <div class="entry-dot" style="background:${catColor(e.catName)}"></div>
+      <div class="entry-info">
+        <div class="entry-name">${e.name}</div>
+        <div class="entry-meta">${e.catName} · ${t}–${t2}</div>
+      </div>
+      <div class="entry-dur">${fmtHours(e.duration)}</div>
+      <button class="entry-del" onclick="deleteEntry('${e.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+function deleteEntry(id){
+  if(!confirm('删除这条记录？')) return;
+  entries = entries.filter(e=>e.id!==id);
+  saveEntries();
+  renderTodayList();
+  updateTopbar();
+  renderStats(); // 如果在统计页也刷新
+}
+window.deleteEntry = deleteEntry;
+
+/* ════════════════════════════════════════
+   统计页
+════════════════════════════════════════ */
+const HM_COLORS = ['#e8e4da','#c5ddd5','#8dc0b0','#5b8f7c','#3d6b5a'];
+let pieChart=null, barChart=null;
+
+function renderStats(){
+  const src = filterCatStats ? entries.filter(e=>e.catName===filterCatStats) : entries;
+
+  // 统计卡
+  const today = todayStr();
+  const wAgo = new Date(); wAgo.setDate(wAgo.getDate()-6);
+  const wStr = toDateStr(wAgo);
+  const todayH = src.filter(e=>e.date===today).reduce((s,e)=>s+e.duration,0);
+  const weekH  = src.filter(e=>e.date>=wStr).reduce((s,e)=>s+e.duration,0);
+  const days   = new Set(src.map(e=>e.date)).size;
+  const catSum = {}; src.forEach(e=>{catSum[e.catName]=(catSum[e.catName]||0)+e.duration;});
+  const top    = Object.entries(catSum).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">今日</div><div class="stat-val">${(todayH/3600).toFixed(1)}<span class="stat-unit">h</span></div></div>
+    <div class="stat-card"><div class="stat-label">本周</div><div class="stat-val">${(weekH/3600).toFixed(1)}<span class="stat-unit">h</span></div></div>
+    <div class="stat-card"><div class="stat-label">记录天</div><div class="stat-val">${days}<span class="stat-unit">天</span></div></div>
+    <div class="stat-card"><div class="stat-label">最投入</div><div class="stat-val" style="font-size:16px;padding-top:6px">${top?top[0]:'—'}</div></div>
+  `;
+
+  // 过滤器
+  renderFilterRow('stats-filter', filterCatStats, n=>{filterCatStats=n; renderStats();});
+
+  // 热力图
+  renderHeatmap(src);
+
+  // 图表
+  const cNames = Object.keys(catSum);
+  const cVals  = cNames.map(c=>catSum[c]/3600);
+  const cColors= cNames.map(c=>catColor(c));
+  const total  = cVals.reduce((a,b)=>a+b,0)||1;
+  if(pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pie-chart'),{
+    type:'doughnut',
+    data:{labels:cNames,datasets:[{data:cVals,backgroundColor:cColors,borderWidth:0,hoverOffset:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${Math.round(ctx.parsed/total*100)}%`}}},cutout:'60%'}
+  });
+  document.getElementById('pie-legend').innerHTML =
+    cNames.slice(0,5).map((c,i)=>`
+      <div class="legend-row">
+        <div class="legend-sq" style="background:${cColors[i]}"></div>
+        ${c}<span class="legend-h">${cVals[i].toFixed(1)}h</span>
+      </div>`).join('');
+
+  const days7=[]; const labels7=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    days7.push(toDateStr(d));
+    labels7.push(d.toLocaleDateString('zh-CN',{weekday:'short'}));
+  }
+  const bar7 = days7.map(d=>src.filter(e=>e.date===d).reduce((s,e)=>s+e.duration/3600,0));
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('bar-chart'),{
+    type:'bar',
+    data:{labels:labels7,datasets:[{data:bar7,backgroundColor:'#5b8f7c',borderRadius:3,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#b0a89e',font:{size:9}}},
+        y:{grid:{color:'#d8d3c8'},ticks:{color:'#b0a89e',font:{size:9},callback:v=>v+'h'}}
+      }
+    }
+  });
+}
+
+function renderHeatmap(src){
+  const dayMap={};
+  src.forEach(e=>{dayMap[e.date]=(dayMap[e.date]||0)+e.duration/3600;});
+  const max=Math.max(...Object.values(dayMap),1);
+  const now=new Date();
+  let html=''; let prevMonth='';
+  for(let w=0;w<12;w++){
+    let col='<div class="hm-col">'; let ml='';
+    for(let d=0;d<7;d++){
+      const idx=w*7+d;
+      const dd=new Date(now); dd.setDate(dd.getDate()-(83-idx));
+      if(dd>now){col+='<div class="hm-cell" style="background:transparent"></div>';continue;}
+      const ds=toDateStr(dd);
+      const m=dd.toLocaleDateString('zh-CN',{month:'short'});
+      if(d===0&&m!==prevMonth){ml=m;prevMonth=m;}
+      const h=dayMap[ds]||0;
+      const lv=h===0?0:Math.min(4,Math.ceil((h/max)*4));
+      col+=`<div class="hm-cell" style="background:${HM_COLORS[lv]}" title="${ds} ${h?h.toFixed(1)+'h':'无记录'}"></div>`;
+    }
+    html+=col.replace('<div class="hm-col">',`<div class="hm-col"><div class="hm-ml">${ml}</div>`)+`</div>`;
+  }
+  document.getElementById('heatmap').innerHTML=html;
+}
+
+function renderFilterRow(elId, active, onSelect){
+  const el=document.getElementById(elId);
+  el.innerHTML=`<div class="filter-chip ${active===null?'active':''}" onclick="(${onSelect.toString()})(null)">
+    <div class="cdot" style="background:#888"></div>全部</div>`
+  +cats.map(c=>`<div class="filter-chip ${active===c.name?'active':''}"
+    onclick="(${onSelect.toString()})('${c.name}')">
+    <div class="cdot" style="background:${c.color}"></div>${c.name}</div>`).join('');
+}
+
+/* ════════════════════════════════════════
+   历史页
+════════════════════════════════════════ */
+function renderHistory(){
+  renderFilterRow('history-filter', filterCatHistory, n=>{filterCatHistory=n; renderHistory();});
+  const src = filterCatHistory ? entries.filter(e=>e.catName===filterCatHistory) : [...entries];
+  src.sort((a,b)=>b.startTs-a.startTs);
+  const el=document.getElementById('history-list');
+  if(!src.length){el.innerHTML='<div class="empty-hint">暂无记录</div>';return;}
+  let html=''; let lastDate='';
+  src.forEach(e=>{
+    if(e.date!==lastDate){
+      const d=new Date(e.date+'T12:00:00');
+      html+=`<div class="history-date-header">${d.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'short'})}</div>`;
+      lastDate=e.date;
+    }
+    const t = new Date(e.startTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    const t2= new Date(e.endTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    html+=`<div class="entry-card" style="margin-bottom:6px">
+      <div class="entry-dot" style="background:${catColor(e.catName)}"></div>
+      <div class="entry-info">
+        <div class="entry-name">${e.name}</div>
+        <div class="entry-meta">${e.catName} · ${t}–${t2}</div>
+      </div>
+      <div class="entry-dur">${fmtHours(e.duration)}</div>
+      <button class="entry-del" onclick="deleteEntry('${e.id}')">×</button>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+/* ════════════════════════════════════════
+   设置页
+════════════════════════════════════════ */
+function renderSettings(){
+  // PWA hint — iOS Safari
+  const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+  const isStandalone = window.navigator.standalone;
+  document.getElementById('install-hint').classList.toggle('show', isIOS && !isStandalone);
+
+  const el=document.getElementById('cat-settings-list');
+  el.innerHTML=cats.map(c=>`
+    <div class="setting-row">
+      <div class="cdot" style="background:${c.color}"></div>
+      <div style="flex:1">
+        <div class="setting-row-name">${c.name}</div>
+        ${c.subs.length?`<div class="setting-row-subs">${c.subs.join('、')}</div>`:''}
+      </div>
+      <button class="btn-small danger" onclick="deleteCat('${c.id}')">删除</button>
+    </div>`).join('');
+}
+
+function openAddCat(){ document.getElementById('add-cat-form').classList.add('open'); }
+function closeAddCat(){ document.getElementById('add-cat-form').classList.remove('open'); }
+window.openAddCat=openAddCat; window.closeAddCat=closeAddCat;
+
+function confirmAddCat(){
+  const name=document.getElementById('new-cat-name').value.trim();
+  if(!name){alert('请填写类别名称');return;}
+  const subsRaw=document.getElementById('new-cat-subs').value.trim();
+  const subs=subsRaw?subsRaw.split(/[，,、]/).map(s=>s.trim()).filter(Boolean):[];
+  const palette=['#C9A96E','#6ECFC9','#CF6E9A','#9ACF6E','#CF9A6E','#6E9ACF'];
+  const color=palette[cats.length%palette.length];
+  cats.push({id:'c'+Date.now(), name, color, subs});
+  saveCats();
+  document.getElementById('new-cat-name').value='';
+  document.getElementById('new-cat-subs').value='';
+  closeAddCat();
+  renderSettings();
+  renderCatGrid();
+}
+window.confirmAddCat=confirmAddCat;
+
+function deleteCat(id){
+  const cat=catById(id);
+  if(!cat) return;
+  if(!confirm(`删除类别"${cat.name}"？（该类别的历史记录不会删除）`)) return;
+  cats=cats.filter(c=>c.id!==id);
+  saveCats();
+  renderSettings();
+  renderCatGrid();
+}
+window.deleteCat=deleteCat;
+
+/* ════════════════════════════════════════
+   数据导入/导出
+════════════════════════════════════════ */
+function exportData(){
+  const data={cats,entries,exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`time-tracker-backup-${todayStr()}.json`;
+  a.click();
+}
+window.exportData=exportData;
+
+function importData(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json';
+  inp.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(data.cats) cats=data.cats;
+        if(data.entries) entries=data.entries;
+        saveCats(); saveEntries();
+        alert('导入成功！');
+        location.reload();
+      }catch(err){alert('文件格式错误');}
+    };
+    r.readAsText(file);
+  };
+  inp.click();
+}
+window.importData=importData;
+
+function clearAllData(){
+  if(!confirm('确定清除全部数据？此操作不可恢复。')) return;
+  if(!confirm('再确认一次：清除所有记录？')) return;
+  localStorage.clear();
+  sessionStorage.clear();
+  location.reload();
+}
+window.clearAllData=clearAllData;
+
+/* ════════════════════════════════════════
+   恢复计时器（刷新页面后继续）
+════════════════════════════════════════ */
+function restoreTimer(){
+  if(timerState.running && timerState.startTs){
+    startInterval();
+    document.getElementById('btn-start').textContent='结束';
+    document.getElementById('btn-start').classList.add('running');
+    document.getElementById('btn-pause').classList.add('show');
+    document.getElementById('btn-discard').classList.add('show');
+    document.getElementById('timer-display').classList.add('running');
+    document.getElementById('paused-hint').textContent='';
+    document.querySelectorAll('.cat-chip').forEach(c=>c.style.pointerEvents='none');
+    updateTimerBadge();
+  } else if(timerState.paused){
+    const s = timerState.elapsed;
+    document.getElementById('timer-display').textContent = fmtSeconds(s);
+    document.getElementById('timer-display').classList.add('paused');
+    document.getElementById('btn-start').textContent='结束';
+    document.getElementById('btn-pause').textContent='▶';
+    document.getElementById('btn-pause').classList.add('show','paused');
+    document.getElementById('btn-discard').classList.add('show');
+    const rHint = document.getElementById('paused-hint');
+    rHint.textContent = '已暂停 · 去忙另一件事吧';
+    requestAnimationFrame(()=>rHint.classList.add('visible'));
+    document.querySelectorAll('.cat-chip').forEach(c=>c.style.pointerEvents='none');
+    updateTimerBadge();
+  }
+}
+
+/* ════════════════════════════════════════
+   初始化
+════════════════════════════════════════ */
+updateTopbar();
+renderTimerPage();
+restoreTimer();
+
+// 每分钟刷新顶栏日期
+setInterval(updateTopbar, 60000);
+</script>
+
+<!-- PWA Service Worker -->
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
