@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="时间去哪了">
-<meta name="theme-color" content="#f5f2ec">
+<meta name="theme-color" content="#fdf6f8">
 <title>時間帳 · 时间去哪了</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -16,31 +16,31 @@
 
 <style>
 :root {
-  /* 和纸色系 */
-  --bg:      #f5f2ec;   /* 和纸米白 */
-  --bg2:     #edeae2;   /* 旧纸 */
-  --bg3:     #e4e0d6;   /* 浅灰褐 */
-  --border:  #d8d3c8;   /* 纸纹线 */
-  --border2: #c4bfb2;   /* 深一档 */
+  /* Claude 同款米白 */
+  --bg:      #ffffff;
+  --bg2:     #f5f4f0;
+  --bg3:     #ebe9e3;
+  --border:  #e5e2da;
+  --border2: #d0cdc4;
 
   /* 文字 */
-  --text:    #2c2823;   /* 墨色 */
-  --text2:   #7a736a;   /* 淡墨 */
-  --text3:   #b0a89e;   /* 淡灰 */
+  --text:    #1a1815;
+  --text2:   #6b6760;
+  --text3:   #b0ada6;
 
-  /* 点睛：青瓷绿 */
-  --accent:  #5b8f7c;
-  --accent-light: #e8f2ee;
-  --accent2: #3d6b5a;
+  /* 主色：藕粉玫瑰 */
+  --accent:       #b07090;
+  --accent-light: #faeff4;
+  --accent2:      #7d4a64;
 
-  /* 计时运行：樱花粉 */
-  --sakura:  #c97b8a;
+  /* 计时运行：深樱红 */
+  --sakura:  #c0607a;
 
-  /* 危险色 */
+  /* 危险 */
   --danger:  #b85c5c;
 
-  --radius: 10px;
-  --radius-sm: 7px;
+  --radius: 12px;
+  --radius-sm: 8px;
   --font-serif: 'Noto Serif SC', 'Hiragino Mincho ProN', serif;
   --font-sans:  'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
 }
@@ -54,9 +54,61 @@ body {
   font-weight: 300;
   min-height: 100vh;
   padding-bottom: 80px;
-  /* 细腻纸纹背景 */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23f5f2ec'/%3E%3Crect x='0' y='0' width='1' height='1' fill='%23ece9e1' opacity='.3'/%3E%3C/svg%3E");
+  position: relative;
+  overflow-x: hidden;
 }
+
+/* ── 樱花飘落层 ── */
+#sakura-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity .8s;
+}
+#sakura-canvas.active { opacity: 1; }
+
+/* 堆积层：底部铺满的樱花花瓣 SVG */
+#sakura-pile {
+  position: fixed;
+  bottom: 64px; /* 导航栏高度 */
+  left: 0; right: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 满一小时时的全屏花海遮罩 */
+#sakura-full {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 1.5s;
+  overflow: hidden;
+}
+#sakura-full.show { opacity: 1; }
+#sakura-full-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 200;
+  color: #c0607a;
+  letter-spacing: .2em;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 1s .5s;
+  text-shadow: 0 0 20px rgba(255,255,255,.8);
+  line-height: 1.8;
+}
+#sakura-full.show #sakura-full-text { opacity: 1; }
+
+/* 内容要在花瓣上层 */
+.topbar, .page, .nav, .modal-mask { position: relative; z-index: 10; }
 
 /* ── 顶栏 ── */
 .topbar {
@@ -496,6 +548,177 @@ body {
 }
 .btn-add-cat:hover { color: var(--text2); border-color: var(--border2); }
 
+/* ── 快速添加弹窗 ── */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(44,40,35,.35);
+  backdrop-filter: blur(3px);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-mask.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.modal-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg);
+  border-radius: 18px 18px 0 0;
+  padding: 20px 20px 36px;
+  transform: translateY(24px);
+  transition: transform .25s cubic-bezier(.32,1,.6,1);
+  border-top: 1px solid var(--border);
+}
+.modal-mask.open .modal-sheet {
+  transform: translateY(0);
+}
+.modal-drag {
+  width: 36px; height: 4px;
+  background: var(--border2);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+.modal-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text);
+  margin-bottom: 18px;
+  letter-spacing: .04em;
+}
+/* tab 切换 */
+.modal-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-tab {
+  font-size: 13px;
+  padding: 6px 16px 10px;
+  color: var(--text3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all .15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.modal-panel { display: none; }
+.modal-panel.active { display: block; }
+.mform-label {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: .05em;
+  margin-bottom: 5px;
+}
+.mform-input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px 13px;
+  margin-bottom: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s;
+}
+.mform-input:focus { border-color: var(--accent); }
+.mform-input::placeholder { color: var(--text3); }
+.mform-select {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px 13px;
+  margin-bottom: 13px;
+  font-family: inherit;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b0a89e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+}
+/* 颜色选择器 */
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.color-dot {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform .15s, border-color .15s;
+}
+.color-dot.picked {
+  border-color: var(--text);
+  transform: scale(1.15);
+}
+.btn-modal-confirm {
+  width: 100%;
+  height: 46px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  letter-spacing: .06em;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-modal-confirm:active { opacity: .85; }
+
+/* 类别格子里的＋按钮 */
+.cat-chip-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border2);
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--text3);
+  transition: all .15s;
+  min-height: 44px;
+}
+.cat-chip-add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 子活动行里的＋ */
+.sub-chip-add {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px dashed var(--border2);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all .15s;
+}
+.sub-chip-add:hover { border-color: var(--accent); color: var(--accent); }
+
 /* PWA install hint */
 .install-hint {
   background: var(--accent-light);
@@ -522,6 +745,14 @@ body {
 </style>
 </head>
 <body>
+
+<!-- 樱花飘落 canvas -->
+<canvas id="sakura-canvas"></canvas>
+<!-- 满一小时全屏花海 -->
+<div id="sakura-full">
+  <canvas id="sakura-full-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+  <div id="sakura-full-text">一小时了<br>花开满地</div>
+</div>
 
 <!-- 顶栏 -->
 <div class="topbar">
@@ -642,6 +873,38 @@ body {
   </button>
 </nav>
 
+<!-- 快速添加弹窗 -->
+<div class="modal-mask" id="quick-modal" onclick="closeModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="modal-title">添加</div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-cat"  onclick="switchTab('cat')">新类别</button>
+      <button class="modal-tab"        id="tab-sub"  onclick="switchTab('sub')">新子活动</button>
+    </div>
+
+    <!-- 新类别 -->
+    <div class="modal-panel active" id="panel-cat">
+      <div class="mform-label">类别名称</div>
+      <input class="mform-input" id="m-cat-name" placeholder="例：冥想、烹饪…" />
+      <div class="mform-label">颜色</div>
+      <div class="color-picker" id="m-color-picker"></div>
+      <div class="mform-label">子活动（逗号分隔，可留空）</div>
+      <input class="mform-input" id="m-cat-subs" placeholder="例：正念，呼吸练习" />
+      <button class="btn-modal-confirm" onclick="confirmAddCatQuick()">添加类别</button>
+    </div>
+
+    <!-- 新子活动 -->
+    <div class="modal-panel" id="panel-sub">
+      <div class="mform-label">添加到哪个类别</div>
+      <select class="mform-select" id="m-sub-cat"></select>
+      <div class="mform-label">新子活动名称</div>
+      <input class="mform-input" id="m-sub-name" placeholder="例：游泳、速读…" />
+      <button class="btn-modal-confirm" onclick="confirmAddSub()">添加子活动</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 /* ════════════════════════════════════════
@@ -707,6 +970,231 @@ function uid(){ return 'e'+ Date.now() + Math.random().toString(36).slice(2,6); 
 function saveTimerState(){ sessionStorage.setItem('wts_timer', JSON.stringify(timerState)); }
 
 /* ════════════════════════════════════════
+   🌸 樱花飘落引擎
+   规则：
+   - 计时开始 → 花瓣开始飘落，速度与时间进度正比
+   - 花瓣落地后在底部堆积（pile 数组记录位置）
+   - 每 3600 秒（1小时）= 界面铺满一次 → 触发花海全屏动画 → 自动清空重来
+   - 暂停 → 飘落暂停，已堆积花瓣保留
+════════════════════════════════════════ */
+const Sakura = (() => {
+  const PETAL_COLORS = ['#f7c5d0','#f9d4df','#fbe3ea','#f4aec0','#e896b0','#fdd0dc'];
+  const HOUR_SEC = 3600;
+
+  let canvas, ctx, W, H;
+  let petals = [];          // 空中飘的
+  let pile   = [];          // 已落地堆积的
+  let running = false;
+  let rafId   = null;
+  let spawnTimer = null;
+  let elapsedSec = 0;       // 当前计时的已过秒数（由外部注入）
+  let fullShown = false;    // 是否正在显示全屏花海
+
+  // 单片花瓣形状（五瓣心形近似）
+  function drawPetal(ctx, x, y, r, angle, color, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    // 用贝塞尔曲线画一片花瓣
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo( r*.6, -r*.8,  r*1.2, -r*.3,  r*.8,  r*.6);
+    ctx.bezierCurveTo( r*.4,  r*1.1,  0,      r*.9,  0,      0);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function resize(){
+    if(!canvas) return;
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function spawnPetal(){
+    const progress = Math.min(elapsedSec / HOUR_SEC, 1);
+    // 花瓣大小随时间略增
+    const r = 5 + Math.random() * 5 + progress * 4;
+    petals.push({
+      x:  Math.random() * W,
+      y:  -20,
+      vx: (Math.random() - .5) * 1.2,
+      vy: .6 + Math.random() * 1.0 + progress * .5,
+      rot: Math.random() * Math.PI * 2,
+      vrot: (Math.random() - .5) * .04,
+      r,
+      color: PETAL_COLORS[Math.floor(Math.random()*PETAL_COLORS.length)],
+      sway: Math.random() * Math.PI * 2,
+      swaySpeed: .01 + Math.random() * .02,
+      swayAmp: .3 + Math.random() * .5,
+      alpha: .85 + Math.random() * .15,
+    });
+  }
+
+  function pileHeight(){
+    // 根据进度计算堆积高度，1小时 = 整个屏幕
+    const progress = Math.min(elapsedSec / HOUR_SEC, 1);
+    return progress * (H - 64);   // 64 = nav 高度
+  }
+
+  function drawPile(ctx){
+    // 用 pile 数组里的静止花瓣绘制堆积层
+    pile.forEach(p=>{
+      drawPetal(ctx, p.x, p.y, p.r, p.rot, p.color, p.alpha * .7);
+    });
+  }
+
+  function frame(){
+    if(!canvas) return;
+    ctx.clearRect(0, 0, W, H);
+
+    const pH = pileHeight();
+    const floorY = H - 64 - pH; // 当前"地板"高度（从顶部算）
+
+    // 更新空中花瓣
+    petals = petals.filter(p => {
+      p.sway += p.swaySpeed;
+      p.x  += p.vx + Math.sin(p.sway) * p.swayAmp;
+      p.y  += p.vy;
+      p.rot += p.vrot;
+
+      if(p.y >= floorY){
+        // 落地 → 加入堆积
+        pile.push({ x: p.x, y: floorY, r: p.r, rot: p.rot, color: p.color, alpha: p.alpha });
+        return false;
+      }
+      drawPetal(ctx, p.x, p.y, p.r, p.rot, p.color, p.alpha);
+      return true;
+    });
+
+    drawPile(ctx);
+
+    // 检查是否满一小时
+    if(elapsedSec >= HOUR_SEC && !fullShown){
+      triggerFullBloom();
+    }
+
+    if(running) rafId = requestAnimationFrame(frame);
+  }
+
+  function triggerFullBloom(){
+    fullShown = true;
+    const fullEl = document.getElementById('sakura-full');
+    const fc     = document.getElementById('sakura-full-canvas');
+    if(!fullEl || !fc) return;
+
+    fc.width  = window.innerWidth;
+    fc.height = window.innerHeight;
+    const fctx = fc.getContext('2d');
+
+    // 爆发：快速填满花瓣
+    const burst = [];
+    for(let i=0; i<300; i++){
+      burst.push({
+        x: Math.random()*fc.width,
+        y: Math.random()*fc.height,
+        r: 6 + Math.random()*8,
+        rot: Math.random()*Math.PI*2,
+        color: PETAL_COLORS[Math.floor(Math.random()*PETAL_COLORS.length)],
+        alpha: .5 + Math.random()*.4,
+        vy: 1 + Math.random()*2,
+        vx: (Math.random()-.5)*1.5,
+        sway: Math.random()*Math.PI*2,
+        swaySpeed: .02 + Math.random()*.02,
+        swayAmp: .5 + Math.random(),
+      });
+    }
+    let tick = 0;
+    function burstFrame(){
+      fctx.clearRect(0,0,fc.width,fc.height);
+      burst.forEach(p=>{
+        p.sway += p.swaySpeed;
+        p.x += p.vx + Math.sin(p.sway)*p.swayAmp;
+        p.y += p.vy;
+        if(p.y > fc.height) p.y = -10;
+        drawPetal(fctx, p.x, p.y, p.r, p.rot, p.color, p.alpha);
+      });
+      tick++;
+      if(tick < 300) requestAnimationFrame(burstFrame);
+    }
+
+    fullEl.classList.add('show');
+    burstFrame();
+
+    // 5秒后收起，重置进度
+    setTimeout(()=>{
+      fullEl.classList.remove('show');
+      setTimeout(()=>{
+        fctx.clearRect(0,0,fc.width,fc.height);
+        // 重置堆积，新一轮开始
+        pile = [];
+        elapsedSec = elapsedSec % HOUR_SEC;
+        fullShown = false;
+      }, 1500);
+    }, 5000);
+  }
+
+  function startSpawn(){
+    if(spawnTimer) clearInterval(spawnTimer);
+    // 每 800ms 生一片，后期加密
+    spawnTimer = setInterval(()=>{
+      if(!running) return;
+      const progress = Math.min(elapsedSec / HOUR_SEC, 1);
+      const count = 1 + Math.floor(progress * 3); // 最多同时生4片
+      for(let i=0;i<count;i++) spawnPetal();
+    }, 700);
+  }
+
+  function stopSpawn(){
+    clearInterval(spawnTimer);
+    spawnTimer = null;
+  }
+
+  return {
+    init(){
+      canvas = document.getElementById('sakura-canvas');
+      if(!canvas) return;
+      ctx = canvas.getContext('2d');
+      resize();
+      window.addEventListener('resize', resize);
+    },
+    start(sec){
+      if(!canvas) return;
+      elapsedSec = sec || 0;
+      running = true;
+      canvas.classList.add('active');
+      if(!rafId) rafId = requestAnimationFrame(frame);
+      startSpawn();
+    },
+    pause(){
+      running = false;
+      stopSpawn();
+      if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+    },
+    resume(sec){
+      elapsedSec = sec || elapsedSec;
+      running = true;
+      if(!rafId) rafId = requestAnimationFrame(frame);
+      startSpawn();
+    },
+    stop(){
+      running = false;
+      stopSpawn();
+      if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+      if(canvas) canvas.classList.remove('active');
+      if(ctx) ctx.clearRect(0,0,W,H);
+      petals = [];
+      pile   = [];
+      fullShown = false;
+    },
+    tick(sec){
+      elapsedSec = sec;
+    }
+  };
+})();
+
+/* ════════════════════════════════════════
    顶栏
 ════════════════════════════════════════ */
 function updateTopbar(){
@@ -736,23 +1224,29 @@ window.switchPage = switchPage;
 ════════════════════════════════════════ */
 function renderCatGrid(){
   const grid = document.getElementById('cat-grid');
-  grid.innerHTML = cats.map(c=>`
+  const chips = cats.map(c=>`
     <div class="cat-chip ${timerState.catId===c.id?'selected':''}"
          onclick="selectCat('${c.id}')">
       <div class="cdot" style="background:${c.color}"></div>
       <div class="cat-chip-name">${c.name}</div>
     </div>`).join('');
+  const addBtn = timerState.running ? '' :
+    `<div class="cat-chip-add" onclick="openModal('cat')" title="新增类别">＋</div>`;
+  grid.innerHTML = chips + addBtn;
 }
 
 function renderSubRow(){
   const el = document.getElementById('sub-row');
   const cat = catById(timerState.catId);
-  if(!cat || !cat.subs.length){ el.innerHTML=''; return; }
-  el.innerHTML = cat.subs.map(s=>`
+  if(!cat){ el.innerHTML=''; return; }
+  const subChips = cat.subs.map(s=>`
     <div class="sub-chip ${timerState.subName===s?'selected':''}"
          onclick="selectSub('${s.replace(/'/g,"\\'")}')">
       ${s}
     </div>`).join('');
+  const addSub = timerState.running ? '' :
+    `<div class="sub-chip-add" onclick="openModal('sub','${cat.id}')">＋ 子活动</div>`;
+  el.innerHTML = subChips + addSub;
 }
 
 function selectCat(id){
@@ -791,6 +1285,7 @@ function toggleTimer(){
     timerState.paused  = false;
     saveTimerState();
     startInterval();
+    Sakura.start(0);
     document.getElementById('btn-start').textContent = '结束';
     document.getElementById('btn-start').classList.add('running');
     document.getElementById('btn-pause').classList.add('show');
@@ -842,6 +1337,7 @@ function togglePause(){
     timerState.paused  = true;
     timerState.startTs = null;
     saveTimerState();
+    Sakura.pause();
 
     document.getElementById('btn-pause').textContent = '▶';
     document.getElementById('btn-pause').classList.add('paused');
@@ -860,6 +1356,7 @@ function togglePause(){
     timerState.paused  = false;
     saveTimerState();
     startInterval();
+    Sakura.resume(timerState.elapsed);
 
     document.getElementById('btn-pause').textContent = '⏸';
     document.getElementById('btn-pause').classList.remove('paused');
@@ -887,6 +1384,7 @@ function resetTimer(){
   timerState.startTs = null;
   timerState.elapsed = 0;
   saveTimerState();
+  Sakura.stop();
   document.getElementById('timer-display').textContent = '00:00:00';
   document.getElementById('timer-display').classList.remove('running','paused');
   document.getElementById('btn-start').textContent = '开始';
@@ -907,6 +1405,7 @@ function startInterval(){
     const liveSec = timerState.elapsed + Math.floor((Date.now()-timerState.startTs)/1000);
     document.getElementById('timer-display').textContent = fmtSeconds(liveSec);
     document.title = fmtSeconds(liveSec) + ' – 時間帳';
+    Sakura.tick(liveSec);
   }, 500);
 }
 function stopInterval(){
@@ -1094,6 +1593,94 @@ function renderHistory(){
 }
 
 /* ════════════════════════════════════════
+   快速添加弹窗
+════════════════════════════════════════ */
+const PALETTE = [
+  '#5b8f7c','#378ADD','#D4537E','#EF9F27','#7F77DD',
+  '#D85A30','#1D9E75','#c97b8a','#185FA5','#A0A0A0',
+  '#AFA9EC','#F0997B','#85B7EB','#C9A96E','#6ECFC9',
+];
+let pickedColor = PALETTE[0];
+
+function openModal(tab, preCatId){
+  // 构建颜色选择器
+  document.getElementById('m-color-picker').innerHTML = PALETTE.map(c=>
+    `<div class="color-dot ${c===pickedColor?'picked':''}"
+         style="background:${c}" onclick="pickColor('${c}')"></div>`
+  ).join('');
+
+  // 构建类别下拉（用于子活动tab）
+  const sel = document.getElementById('m-sub-cat');
+  sel.innerHTML = cats.map(c=>`<option value="${c.id}" ${c.id===preCatId?'selected':''}>${c.name}</option>`).join('');
+
+  // 清空输入
+  document.getElementById('m-cat-name').value='';
+  document.getElementById('m-cat-subs').value='';
+  document.getElementById('m-sub-name').value='';
+
+  switchTab(tab||'cat');
+  document.getElementById('quick-modal').classList.add('open');
+
+  // 自动聚焦
+  setTimeout(()=>{
+    if(tab==='sub') document.getElementById('m-sub-name').focus();
+    else document.getElementById('m-cat-name').focus();
+  }, 250);
+}
+window.openModal = openModal;
+
+function closeModal(e){
+  if(e && e.target !== document.getElementById('quick-modal')) return;
+  document.getElementById('quick-modal').classList.remove('open');
+}
+window.closeModal = closeModal;
+
+function switchTab(name){
+  ['cat','sub'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active', t===name);
+    document.getElementById('panel-'+t).classList.toggle('active', t===name);
+  });
+}
+window.switchTab = switchTab;
+
+function pickColor(c){
+  pickedColor = c;
+  document.querySelectorAll('.color-dot').forEach(d=>{
+    d.classList.toggle('picked', d.style.background===c || d.style.backgroundColor===c);
+  });
+}
+window.pickColor = pickColor;
+
+function confirmAddCatQuick(){
+  const name = document.getElementById('m-cat-name').value.trim();
+  if(!name){ document.getElementById('m-cat-name').focus(); return; }
+  const subsRaw = document.getElementById('m-cat-subs').value.trim();
+  const subs = subsRaw ? subsRaw.split(/[，,、]/).map(s=>s.trim()).filter(Boolean) : [];
+  cats.push({id:'c'+Date.now(), name, color: pickedColor, subs});
+  saveCats();
+  // 下次打开换个默认色
+  pickedColor = PALETTE[(PALETTE.indexOf(pickedColor)+1) % PALETTE.length];
+  document.getElementById('quick-modal').classList.remove('open');
+  renderCatGrid();
+  renderSettings(); // 同步设置页
+}
+window.confirmAddCatQuick = confirmAddCatQuick;
+
+function confirmAddSub(){
+  const subName = document.getElementById('m-sub-name').value.trim();
+  if(!subName){ document.getElementById('m-sub-name').focus(); return; }
+  const catId = document.getElementById('m-sub-cat').value;
+  const cat = catById(catId);
+  if(!cat) return;
+  if(!cat.subs.includes(subName)) cat.subs.push(subName);
+  saveCats();
+  document.getElementById('quick-modal').classList.remove('open');
+  // 如果当前选中了这个类别，刷新子活动行
+  if(timerState.catId === catId) renderSubRow();
+}
+window.confirmAddSub = confirmAddSub;
+
+/* ════════════════════════════════════════
    设置页
 ════════════════════════════════════════ */
 function renderSettings(){
@@ -1195,7 +1782,9 @@ window.clearAllData=clearAllData;
 ════════════════════════════════════════ */
 function restoreTimer(){
   if(timerState.running && timerState.startTs){
+    const liveSec = timerState.elapsed + Math.floor((Date.now()-timerState.startTs)/1000);
     startInterval();
+    Sakura.start(liveSec);
     document.getElementById('btn-start').textContent='结束';
     document.getElementById('btn-start').classList.add('running');
     document.getElementById('btn-pause').classList.add('show');
@@ -1217,6 +1806,9 @@ function restoreTimer(){
     requestAnimationFrame(()=>rHint.classList.add('visible'));
     document.querySelectorAll('.cat-chip').forEach(c=>c.style.pointerEvents='none');
     updateTimerBadge();
+    // 暂停状态也把已有堆积展示出来（canvas 静态）
+    Sakura.start(s);
+    Sakura.pause();
   }
 }
 
@@ -1225,6 +1817,7 @@ function restoreTimer(){
 ════════════════════════════════════════ */
 updateTopbar();
 renderTimerPage();
+Sakura.init();
 restoreTimer();
 
 // 每分钟刷新顶栏日期
