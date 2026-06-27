@@ -66,6 +66,8 @@ body {
   z-index: 0;
   opacity: 0;
   transition: opacity .8s;
+  width: 100%;
+  height: 100%;
 }
 #sakura-canvas.active { opacity: 1; }
 
@@ -108,7 +110,10 @@ body {
 #sakura-full.show #sakura-full-text { opacity: 1; }
 
 /* 内容要在花瓣上层 */
-.topbar, .page, .nav, .modal-mask { position: relative; z-index: 10; }
+.topbar  { position: sticky; z-index: 10; isolation: isolate; }
+.nav     { z-index: 100; isolation: isolate; }
+.modal-mask { z-index: 200; }
+.page    { isolation: isolate; }
 
 /* ── 顶栏 ── */
 .topbar {
@@ -908,34 +913,102 @@ body {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 /* ════════════════════════════════════════
-   数据
+   💾 数据层 DB（独立模块，永远不改这里）
+   Key 固定：
+     wts_v1_cats     → 类别配置
+     wts_v1_entries  → 记录条目
+   无论界面怎么改，这个模块保持不变。
 ════════════════════════════════════════ */
-const DEFAULT_CATS = [
-  {id:'c1', name:'学雅思',   color:'#378ADD', subs:['朗读','抄写','背诵']},
-  {id:'c2', name:'练吉他',   color:'#D4537E', subs:['solo','和弦']},
-  {id:'c3', name:'运动',     color:'#1D9E75', subs:['八段锦','慢跑','散步']},
-  {id:'c4', name:'家务',     color:'#EF9F27', subs:['做饭','打扫','购物']},
-  {id:'c5', name:'阅读',     color:'#7F77DD', subs:['中文原版','英文原版','日文原版']},
-  {id:'c6', name:'网站设计', color:'#185FA5', subs:[]},
-  {id:'c7', name:'杂学',     color:'#888780', subs:['玄学','访谈','听音乐']},
-  {id:'c8', name:'学韩语',   color:'#D85A30', subs:[]},
-  {id:'c9', name:'工作',     color:'#A0A0A0', subs:['无聊的','有意义的']},
-  {id:'c10',name:'睡眠',     color:'#5DCAA5', subs:[]},
-  {id:'c11',name:'身体清洁', color:'#85B7EB', subs:[]},
-  {id:'c12',name:'家人沟通', color:'#F0997B', subs:[]},
-  {id:'c13',name:'朋友玩耍', color:'#AFA9EC', subs:[]},
-];
+const DB = (() => {
+  const KEY_CATS    = 'wts_v1_cats';
+  const KEY_ENTRIES = 'wts_v1_entries';
 
-function loadCats(){ return JSON.parse(localStorage.getItem('wts_cats')||'null') || DEFAULT_CATS; }
-function saveCats(c){ localStorage.setItem('wts_cats', JSON.stringify(c)); }
-function loadEntries(){ return JSON.parse(localStorage.getItem('wts_entries')||'[]'); }
-function saveEntries(e){ localStorage.setItem('wts_entries', JSON.stringify(e)); }
+  const DEFAULT_CATS = [
+    {id:'c1', name:'学雅思',   color:'#378ADD', subs:['朗读','抄写','背诵']},
+    {id:'c2', name:'练吉他',   color:'#D4537E', subs:['solo','和弦']},
+    {id:'c3', name:'运动',     color:'#1D9E75', subs:['八段锦','慢跑','散步']},
+    {id:'c4', name:'家务',     color:'#EF9F27', subs:['做饭','打扫','购物']},
+    {id:'c5', name:'阅读',     color:'#7F77DD', subs:['中文原版','英文原版','日文原版']},
+    {id:'c6', name:'网站设计', color:'#185FA5', subs:[]},
+    {id:'c7', name:'杂学',     color:'#888780', subs:['玄学','访谈','听音乐']},
+    {id:'c8', name:'学韩语',   color:'#D85A30', subs:[]},
+    {id:'c9', name:'工作',     color:'#A0A0A0', subs:['无聊的','有意义的']},
+    {id:'c10',name:'睡眠',     color:'#5DCAA5', subs:[]},
+    {id:'c11',name:'身体清洁', color:'#85B7EB', subs:[]},
+    {id:'c12',name:'家人沟通', color:'#F0997B', subs:[]},
+    {id:'c13',name:'朋友玩耍', color:'#AFA9EC', subs:[]},
+  ];
 
-let cats = loadCats();
-let entries = loadEntries();
+  function safeRead(key, fallback){
+    try {
+      const v = localStorage.getItem(key);
+      if(!v || v === 'undefined' || v === 'null') return fallback;
+      return JSON.parse(v);
+    } catch(e){
+      console.warn('[DB] 读取失败', key, e);
+      return fallback;
+    }
+  }
 
-function catById(id){ return cats.find(c=>c.id===id); }
-function catByName(n){ return cats.find(c=>c.name===n); }
+  function safeWrite(key, val){
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+      return true;
+    } catch(e){
+      console.warn('[DB] 写入失败', key, e);
+      return false;
+    }
+  }
+
+  // 首次加载时，把旧 key（wts_cats / wts_entries）迁移过来，保住历史数据
+  function migrate(){
+    if(!localStorage.getItem(KEY_ENTRIES)){
+      const old = localStorage.getItem('wts_entries');
+      if(old && old !== 'undefined'){
+        try { safeWrite(KEY_ENTRIES, JSON.parse(old)); } catch(e){}
+      }
+    }
+    if(!localStorage.getItem(KEY_CATS)){
+      const old = localStorage.getItem('wts_cats');
+      if(old && old !== 'undefined'){
+        try { safeWrite(KEY_CATS, JSON.parse(old)); } catch(e){}
+      }
+    }
+  }
+
+  migrate(); // 启动时自动迁移
+
+  return {
+    getCats   (){ return safeRead(KEY_CATS,    DEFAULT_CATS); },
+    saveCats  (v){ safeWrite(KEY_CATS,    v); },
+    getEntries(){ return safeRead(KEY_ENTRIES, []); },
+    saveEntries(v){ safeWrite(KEY_ENTRIES, v); },
+    // 导出完整备份
+    export(){
+      return { cats: this.getCats(), entries: this.getEntries(), exportedAt: new Date().toISOString(), version: 1 };
+    },
+    // 导入备份
+    import(data){
+      if(data.cats)    this.saveCats(data.cats);
+      if(data.entries) this.saveEntries(data.entries);
+    },
+    // 清空全部
+    clear(){
+      localStorage.removeItem(KEY_CATS);
+      localStorage.removeItem(KEY_ENTRIES);
+    }
+  };
+})();
+
+/* ── 全局变量，从 DB 加载 ── */
+let cats    = DB.getCats();
+let entries = DB.getEntries();
+
+function saveCats()   { DB.saveCats(cats); }
+function saveEntries(){ DB.saveEntries(entries); }
+
+function catById(id)  { return cats.find(c=>c.id===id); }
+function catByName(n) { return cats.find(c=>c.name===n); }
 function catColor(name){ return (catByName(name)||{color:'#888'}).color; }
 
 /* ════════════════════════════════════════
@@ -1771,7 +1844,7 @@ window.importData=importData;
 function clearAllData(){
   if(!confirm('确定清除全部数据？此操作不可恢复。')) return;
   if(!confirm('再确认一次：清除所有记录？')) return;
-  localStorage.clear();
+  DB.clear();
   sessionStorage.clear();
   location.reload();
 }
