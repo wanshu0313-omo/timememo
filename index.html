@@ -724,6 +724,47 @@ body {
 }
 .sub-chip-add:hover { border-color: var(--accent); color: var(--accent); }
 
+/* 手动补录按钮 */
+.btn-manual-add {
+  width: 100%;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border2);
+  background: transparent;
+  color: var(--text3);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all .15s;
+  letter-spacing: .04em;
+}
+.btn-manual-add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 编辑/补录弹窗里的时间行 */
+.time-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 13px;
+}
+.time-row .mform-input {
+  margin-bottom: 0;
+  flex: 1;
+}
+.time-sep { color: var(--text3); font-size: 13px; flex-shrink: 0; }
+
+/* entry card 点击编辑效果 */
+.entry-card { cursor: pointer; transition: background .15s; }
+.entry-card:hover { background: var(--bg3); }
+.entry-edit-hint {
+  font-size: 10px;
+  color: var(--text3);
+  padding-left: 2px;
+  margin-bottom: 6px;
+  letter-spacing: .03em;
+}
+
 /* PWA install hint */
 .install-hint {
   background: var(--accent-light);
@@ -907,6 +948,32 @@ body {
       <input class="mform-input" id="m-sub-name" placeholder="例：游泳、速读…" />
       <button class="btn-modal-confirm" onclick="confirmAddSub()">添加子活动</button>
     </div>
+  </div>
+</div>
+
+<!-- 编辑 / 手动补录弹窗 -->
+<div class="modal-mask" id="edit-modal" onclick="closeEditModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="edit-modal-title">编辑记录</div>
+
+    <div class="mform-label">活动名称</div>
+    <input class="mform-input" id="edit-name" placeholder="在做什么…" />
+
+    <div class="mform-label">类别</div>
+    <select class="mform-select" id="edit-cat"></select>
+
+    <div class="mform-label">日期</div>
+    <input class="mform-input" id="edit-date" type="date" />
+
+    <div class="mform-label">开始时间 → 结束时间</div>
+    <div class="time-row">
+      <input class="mform-input" id="edit-start" type="time" />
+      <span class="time-sep">→</span>
+      <input class="mform-input" id="edit-end" type="time" />
+    </div>
+
+    <button class="btn-modal-confirm" onclick="confirmEdit()">保存</button>
   </div>
 </div>
 
@@ -1502,21 +1569,25 @@ function renderTodayList(){
   document.getElementById('today-total').textContent =
     todayEntries.length ? `共 ${todayEntries.length} 条 · ${fmtHours(totalSec)}` : '';
 
+  // 手动补录按钮
+  const manualBtn = `<button class="btn-manual-add" onclick="openManualAdd()">＋ 手动补录一条</button>`;
+
   if(!todayEntries.length){
-    el.innerHTML = '<div class="empty-hint">今天还没有记录<br>选好类别按"开始"吧</div>';
+    el.innerHTML = manualBtn + '<div class="empty-hint">今天还没有记录<br>选好类别按"开始"，或手动补录</div>';
     return;
   }
-  el.innerHTML = todayEntries.map(e=>{
-    const t = new Date(e.startTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  const hint = `<div class="entry-edit-hint">点击任意记录可编辑</div>`;
+  el.innerHTML = manualBtn + hint + todayEntries.map(e=>{
+    const t  = new Date(e.startTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
     const t2 = new Date(e.endTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-    return `<div class="entry-card">
+    return `<div class="entry-card" onclick="openEditEntry('${e.id}')">
       <div class="entry-dot" style="background:${catColor(e.catName)}"></div>
       <div class="entry-info">
         <div class="entry-name">${e.name}</div>
         <div class="entry-meta">${e.catName} · ${t}–${t2}</div>
       </div>
       <div class="entry-dur">${fmtHours(e.duration)}</div>
-      <button class="entry-del" onclick="deleteEntry('${e.id}')">×</button>
+      <button class="entry-del" onclick="event.stopPropagation();deleteEntry('${e.id}')">×</button>
     </div>`;
   }).join('');
 }
@@ -1652,14 +1723,14 @@ function renderHistory(){
     }
     const t = new Date(e.startTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
     const t2= new Date(e.endTs).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-    html+=`<div class="entry-card" style="margin-bottom:6px">
+    html+=`<div class="entry-card" style="margin-bottom:6px" onclick="openEditEntry('${e.id}')">
       <div class="entry-dot" style="background:${catColor(e.catName)}"></div>
       <div class="entry-info">
         <div class="entry-name">${e.name}</div>
         <div class="entry-meta">${e.catName} · ${t}–${t2}</div>
       </div>
       <div class="entry-dur">${fmtHours(e.duration)}</div>
-      <button class="entry-del" onclick="deleteEntry('${e.id}')">×</button>
+      <button class="entry-del" onclick="event.stopPropagation();deleteEntry('${e.id}')">×</button>
     </div>`;
   });
   el.innerHTML=html;
@@ -1752,6 +1823,105 @@ function confirmAddSub(){
   if(timerState.catId === catId) renderSubRow();
 }
 window.confirmAddSub = confirmAddSub;
+
+/* ════════════════════════════════════════
+   编辑 / 手动补录
+════════════════════════════════════════ */
+let editingId = null; // null = 新建，有值 = 编辑
+
+function buildEditCatSelect(selectedCatId){
+  document.getElementById('edit-cat').innerHTML =
+    cats.map(c=>`<option value="${c.id}" ${c.id===selectedCatId?'selected':''}>${c.name}</option>`).join('');
+}
+
+// 打开编辑现有记录
+function openEditEntry(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingId = id;
+  document.getElementById('edit-modal-title').textContent = '编辑记录';
+  document.getElementById('edit-name').value = e.name;
+  buildEditCatSelect(e.catId);
+  document.getElementById('edit-date').value = e.date;
+
+  const startTime = new Date(e.startTs);
+  const endTime   = new Date(e.endTs);
+  document.getElementById('edit-start').value =
+    `${String(startTime.getHours()).padStart(2,'0')}:${String(startTime.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('edit-end').value =
+    `${String(endTime.getHours()).padStart(2,'0')}:${String(endTime.getMinutes()).padStart(2,'0')}`;
+
+  document.getElementById('edit-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('edit-name').focus(), 250);
+}
+window.openEditEntry = openEditEntry;
+
+// 打开手动补录
+function openManualAdd(){
+  editingId = null;
+  document.getElementById('edit-modal-title').textContent = '手动补录';
+  document.getElementById('edit-name').value = '';
+  buildEditCatSelect(cats[0]?.id);
+  document.getElementById('edit-date').value = todayStr();
+
+  // 默认时间：现在往前1小时
+  const now = new Date();
+  const oneHrAgo = new Date(now - 3600000);
+  document.getElementById('edit-start').value =
+    `${String(oneHrAgo.getHours()).padStart(2,'0')}:${String(oneHrAgo.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('edit-end').value =
+    `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  document.getElementById('edit-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('edit-name').focus(), 250);
+}
+window.openManualAdd = openManualAdd;
+
+function closeEditModal(e){
+  if(e && e.target !== document.getElementById('edit-modal')) return;
+  document.getElementById('edit-modal').classList.remove('open');
+}
+window.closeEditModal = closeEditModal;
+
+function confirmEdit(){
+  const name  = document.getElementById('edit-name').value.trim();
+  const catId = document.getElementById('edit-cat').value;
+  const date  = document.getElementById('edit-date').value;
+  const startT= document.getElementById('edit-start').value;
+  const endT  = document.getElementById('edit-end').value;
+
+  if(!name || !date || !startT || !endT){
+    alert('请填写完整信息'); return;
+  }
+
+  const startTs = new Date(`${date}T${startT}:00`).getTime();
+  const endTs   = new Date(`${date}T${endT}:00`).getTime();
+  if(endTs <= startTs){ alert('结束时间要晚于开始时间'); return; }
+
+  const cat = catById(catId);
+  const duration = Math.floor((endTs - startTs) / 1000);
+
+  if(editingId){
+    // 编辑已有
+    const idx = entries.findIndex(e=>e.id===editingId);
+    if(idx !== -1){
+      entries[idx] = { ...entries[idx], name, catId, catName: cat.name, date, startTs, endTs, duration };
+    }
+  } else {
+    // 新建补录
+    entries.push({
+      id: uid(), name, catId, catName: cat.name,
+      note: '', date, startTs, endTs, duration,
+    });
+  }
+
+  saveEntries();
+  document.getElementById('edit-modal').classList.remove('open');
+  renderTodayList();
+  renderHistory();
+  updateTopbar();
+}
+window.confirmEdit = confirmEdit;
 
 /* ════════════════════════════════════════
    设置页
