@@ -1,4 +1,4 @@
-const CACHE = 'wts-v4fix';  // ← 每次更新网页时改这个版本号，缓存自动失效
+const CACHE = 'wts-v5';  // ← 每次更新网页时改这个版本号，缓存自动失效
 const ASSETS = [
   './',
   './index.html',
